@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — CalorieLens</title>
+    <title>Login — VibeFit</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
     <style>
@@ -21,7 +21,7 @@
                           d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                 </svg>
             </div>
-            <h1 style="font-family:'Sora',sans-serif" class="text-3xl font-extrabold text-gray-900">CalorieLens</h1>
+            <h1 style="font-family:'Sora',sans-serif" class="text-3xl font-extrabold text-gray-900">VibeFit</h1>
             <p class="text-gray-500 mt-1 text-sm">Lacak kalori dengan foto, powered by AI</p>
         </div>
 
