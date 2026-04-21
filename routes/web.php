@@ -11,32 +11,31 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn() => redirect()->route('dashboard'));
 
 Route::middleware('guest')->group(function () {
-    Route::get('/register',       [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register',      [AuthController::class, 'register']);
-    Route::get('/login',          [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login',         [AuthController::class, 'login']);
+    Route::get('/register',  [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::get('/login',     [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login',    [AuthController::class, 'login']);
 });
 
 // ── AUTHENTICATED ─────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // Profile — tidak kena middleware profile.complete
+    Route::get('/profile',          [ProfileController::class, 'show'])->name('profile');
+    Route::put('/profile',          [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+});
+
+// ── AUTHENTICATED + PROFIL LENGKAP ────────────────────────────────────────────
+Route::middleware(['auth', \App\Http\Middleware\ProfileComplete::class])->group(function () {
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Profile
-    Route::get('/profile',                  [ProfileController::class, 'show'])->name('profile');
-    Route::put('/profile',                  [ProfileController::class, 'update'])->name('profile.update');
-    Route::put('/profile/password',         [ProfileController::class, 'updatePassword'])->name('profile.password');
-
     // Food Logs
-    Route::post('/food/analyze',            [FoodLogController::class, 'analyze'])->name('food.analyze');
-    Route::post('/food',                    [FoodLogController::class, 'store'])->name('food.store');
-    Route::delete('/food/{foodLog}',        [FoodLogController::class, 'destroy'])->name('food.destroy');
-    Route::get('/food/history',             [FoodLogController::class, 'history'])->name('food.history');
-
-    // // Serve private images
-    // Route::get('/food/image/{path}',        [FoodLogController::class, 'serveImage'])
-    //     ->where('path', '.*')
-    //     ->name('food.image');
+    Route::post('/food/analyze', [FoodLogController::class, 'analyze'])->name('food.analyze');
+    Route::post('/food',         [FoodLogController::class, 'store'])->name('food.store');
+    Route::delete('/food/{foodLog}', [FoodLogController::class, 'destroy'])->name('food.destroy');
+    Route::get('/food/history',  [FoodLogController::class, 'history'])->name('food.history');
 });

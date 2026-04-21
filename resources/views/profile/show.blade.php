@@ -9,6 +9,20 @@
         <p class="text-gray-500 text-sm mt-0.5">Kelola data diri dan target kalori kamu</p>
     </div>
 
+    {{-- ALERT PROFIL BELUM LENGKAP --}}
+    @php
+        $incomplete = !$user->birth_date || !$user->gender || !$user->weight || !$user->height || !$user->daily_calorie_target;
+    @endphp
+    @if($incomplete)
+    <div class="bg-yellow-50 border border-yellow-300 rounded-2xl p-4 flex items-start gap-3">
+        <span class="text-yellow-500 text-xl mt-0.5">⚠️</span>
+        <div>
+            <p class="text-sm font-bold text-yellow-800">Profil belum lengkap</p>
+            <p class="text-xs text-yellow-700 mt-0.5">Lengkapi data diri kamu di bawah agar bisa menggunakan semua fitur CalorieLens.</p>
+        </div>
+    </div>
+    @endif
+
     {{-- BMR INFO CARD --}}
     @if($user->bmr)
     <div class="bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl p-5 text-white">
@@ -49,32 +63,44 @@
                            class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                 </div>
                 <div>
-                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">Tanggal Lahir</label>
+                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">
+                        Tanggal Lahir
+                        @if(!$user->birth_date)<span class="text-red-400 text-xs">*wajib</span>@endif
+                    </label>
                     <input type="date" name="birth_date"
                            value="{{ old('birth_date', $user->birth_date?->format('Y-m-d')) }}"
-                           class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
+                           class="w-full px-4 py-3 rounded-xl border {{ !$user->birth_date ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                 </div>
                 <div>
-                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">Jenis Kelamin</label>
+                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">
+                        Jenis Kelamin
+                        @if(!$user->gender)<span class="text-red-400 text-xs">*wajib</span>@endif
+                    </label>
                     <select name="gender"
-                            class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
+                            class="w-full px-4 py-3 rounded-xl border {{ !$user->gender ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                         <option value="">-- Pilih --</option>
                         <option value="male"   {{ old('gender', $user->gender) === 'male'   ? 'selected' : '' }}>Laki-laki</option>
                         <option value="female" {{ old('gender', $user->gender) === 'female' ? 'selected' : '' }}>Perempuan</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">Berat Badan (kg)</label>
+                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">
+                        Berat Badan (kg)
+                        @if(!$user->weight)<span class="text-red-400 text-xs">*wajib</span>@endif
+                    </label>
                     <input type="number" name="weight" step="0.1" min="20" max="300"
                            value="{{ old('weight', $user->weight) }}"
-                           class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                           class="w-full px-4 py-3 rounded-xl border {{ !$user->weight ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                            placeholder="Contoh: 65.5">
                 </div>
                 <div>
-                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">Tinggi Badan (cm)</label>
+                    <label class="text-sm font-semibold text-gray-700 block mb-1.5">
+                        Tinggi Badan (cm)
+                        @if(!$user->height)<span class="text-red-400 text-xs">*wajib</span>@endif
+                    </label>
                     <input type="number" name="height" step="0.1" min="100" max="250"
                            value="{{ old('height', $user->height) }}"
-                           class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                           class="w-full px-4 py-3 rounded-xl border {{ !$user->height ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                            placeholder="Contoh: 170">
                 </div>
             </div>
@@ -84,10 +110,13 @@
                 <h3 class="text-sm font-bold text-gray-900 mb-4">🎯 Target Kalori</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="text-sm font-semibold text-gray-700 block mb-1.5">Kalori Harian (kkal)</label>
+                        <label class="text-sm font-semibold text-gray-700 block mb-1.5">
+                            Kalori Harian (kkal)
+                            @if(!$user->daily_calorie_target)<span class="text-red-400 text-xs">*wajib</span>@endif
+                        </label>
                         <input type="number" name="daily_calorie_target" min="1000" max="10000"
                                value="{{ old('daily_calorie_target', $user->daily_calorie_target) }}"
-                               class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
+                               class="w-full px-4 py-3 rounded-xl border {{ !$user->daily_calorie_target ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200' }} text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                     </div>
                     <div>
                         <label class="text-sm font-semibold text-gray-700 block mb-1.5">Pangkas saat Diet (kkal)</label>
