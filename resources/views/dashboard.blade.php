@@ -81,7 +81,7 @@
             <div id="step-upload">
                 <div id="upload-zone"
                      class="upload-zone border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50 transition"
-                     onclick="document.getElementById('food-image').click()">
+                     onclick="openPhotoSheet()">
                     <div id="preview-wrap" class="hidden">
                         <img id="preview-img" src="" alt="preview" class="max-h-48 mx-auto rounded-xl object-cover mb-3">
                     </div>
@@ -98,7 +98,10 @@
                         <p class="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — maks 10MB</p>
                     </div>
                 </div>
-                <input type="file" id="food-image" accept="image/*" capture="environment" class="hidden">
+
+                {{-- Hidden inputs: kamera & galeri terpisah --}}
+                <input type="file" id="food-image-camera" accept="image/*" capture="environment" class="hidden">
+                <input type="file" id="food-image-gallery" accept="image/*" class="hidden">
 
                 <button id="btn-analyze"
                         onclick="analyzeImage()"
@@ -113,7 +116,7 @@
                 {{-- Loading --}}
                 <div id="loading" class="hidden mt-4 flex flex-col items-center gap-3 py-4">
                     <div class="w-10 h-10 border-4 border-brand-200 border-t-brand-500 rounded-full spin"></div>
-                    <p class="text-sm text-gray-500 font-medium">Ai sedang menganalisis foto...</p>
+                    <p class="text-sm text-gray-500 font-medium">AI sedang menganalisis foto...</p>
                 </div>
             </div>
 
@@ -370,42 +373,197 @@
 
 </div>
 
+{{-- ============================================================ --}}
+{{-- MOBILE PHOTO PICKER — BOTTOM SHEET                          --}}
+{{-- ============================================================ --}}
+<div id="photo-sheet" class="fixed inset-0 z-50 hidden" style="touch-action: none;">
+    {{-- Backdrop --}}
+    <div id="sheet-backdrop"
+         class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300"
+         onclick="closePhotoSheet()"></div>
+
+    {{-- Panel --}}
+    <div id="sheet-panel"
+         class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl"
+         style="transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1); padding-bottom: env(safe-area-inset-bottom, 0px);">
+
+        {{-- Handle --}}
+        <div class="flex justify-center pt-3 pb-1">
+            <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+
+        <div class="px-5 pb-5 pt-3">
+            <p class="text-sm font-semibold text-gray-700 mb-4 text-center">Pilih sumber foto</p>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                {{-- Kamera --}}
+                <button onclick="pickSource('camera')"
+                        class="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-gray-100 hover:border-brand-300 hover:bg-brand-50 active:scale-95 transition-all duration-150">
+                    <div class="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-800">Kamera</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Foto langsung</p>
+                    </div>
+                </button>
+
+                {{-- Galeri --}}
+                <button onclick="pickSource('gallery')"
+                        class="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-gray-100 hover:border-brand-300 hover:bg-brand-50 active:scale-95 transition-all duration-150">
+                    <div class="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-800">Galeri</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dari foto tersimpan</p>
+                    </div>
+                </button>
+            </div>
+
+            {{-- Batal --}}
+            <button onclick="closePhotoSheet()"
+                    class="w-full py-3.5 text-sm font-semibold text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition active:scale-95">
+                Batal
+            </button>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     let selectedFile = null;
     let previewSrc = null;
 
-    // File input change
-    document.getElementById('food-image').addEventListener('change', function(e) {
-        selectedFile = e.target.files[0];
-        if (!selectedFile) return;
-        previewSrc = URL.createObjectURL(selectedFile);
+    // Deteksi mobile berdasarkan pointer & UA
+    const isMobile = (window.matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+    // ─── Bottom Sheet ─────────────────────────────────────────────
+    function openPhotoSheet() {
+        if (!isMobile) {
+            // Desktop: langsung buka file picker galeri
+            document.getElementById('food-image-gallery').click();
+            return;
+        }
+        const sheet   = document.getElementById('photo-sheet');
+        const panel   = document.getElementById('sheet-panel');
+        const backdrop = document.getElementById('sheet-backdrop');
+
+        sheet.classList.remove('hidden');
+        // Force reflow sebelum transisi
+        sheet.offsetHeight;
+        panel.style.transform   = 'translateY(0)';
+        backdrop.style.opacity  = '1';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closePhotoSheet() {
+        const sheet    = document.getElementById('photo-sheet');
+        const panel    = document.getElementById('sheet-panel');
+        const backdrop = document.getElementById('sheet-backdrop');
+
+        panel.style.transform  = 'translateY(100%)';
+        backdrop.style.opacity = '0';
+        document.body.style.overflow = '';
+
+        setTimeout(() => {
+            sheet.classList.add('hidden');
+        }, 350);
+    }
+
+    function pickSource(source) {
+        closePhotoSheet();
+        // Tunggu animasi tutup selesai baru buka input
+        setTimeout(() => {
+            if (source === 'camera') {
+                document.getElementById('food-image-camera').click();
+            } else {
+                document.getElementById('food-image-gallery').click();
+            }
+        }, 380);
+    }
+
+    // Tutup sheet kalau swipe ke bawah (simple touch handling)
+    (function() {
+        const panel = document.getElementById('sheet-panel');
+        let startY = 0;
+        let currentY = 0;
+        let dragging = false;
+
+        panel.addEventListener('touchstart', e => {
+            startY   = e.touches[0].clientY;
+            dragging = true;
+        }, { passive: true });
+
+        panel.addEventListener('touchmove', e => {
+            if (!dragging) return;
+            currentY = e.touches[0].clientY;
+            const delta = Math.max(0, currentY - startY);
+            panel.style.transition = 'none';
+            panel.style.transform  = `translateY(${delta}px)`;
+        }, { passive: true });
+
+        panel.addEventListener('touchend', () => {
+            dragging = false;
+            const delta = currentY - startY;
+            panel.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)';
+            if (delta > 80) {
+                closePhotoSheet();
+            } else {
+                panel.style.transform = 'translateY(0)';
+            }
+        });
+    })();
+
+    // ─── File Handling ────────────────────────────────────────────
+    function handleFileSelected(file) {
+        if (!file) return;
+        selectedFile = file;
+        previewSrc   = URL.createObjectURL(file);
+
         document.getElementById('preview-img').src = previewSrc;
         document.getElementById('preview-wrap').classList.remove('hidden');
         document.getElementById('upload-placeholder').classList.add('hidden');
         document.getElementById('btn-analyze').classList.remove('hidden');
         document.getElementById('btn-analyze').classList.add('flex');
+    }
+
+    document.getElementById('food-image-camera').addEventListener('change', function(e) {
+        handleFileSelected(e.target.files[0]);
     });
 
-    // Drag & Drop
+    document.getElementById('food-image-gallery').addEventListener('change', function(e) {
+        handleFileSelected(e.target.files[0]);
+    });
+
+    // ─── Drag & Drop (Desktop) ────────────────────────────────────
     const zone = document.getElementById('upload-zone');
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.classList.add('dragover');
+    });
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
     zone.addEventListener('drop', e => {
         e.preventDefault();
         zone.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
         if (file && file.type.startsWith('image/')) {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            document.getElementById('food-image').files = dt.files;
-            document.getElementById('food-image').dispatchEvent(new Event('change'));
+            handleFileSelected(file);
         }
     });
 
+    // ─── Analyze ──────────────────────────────────────────────────
     async function analyzeImage() {
         if (!selectedFile) return;
+
         document.getElementById('btn-analyze').classList.add('hidden');
         document.getElementById('btn-analyze').classList.remove('flex');
         document.getElementById('loading').classList.remove('hidden');
@@ -416,32 +574,29 @@
         formData.append('_token', csrfToken);
 
         try {
-            const res = await fetch('{{ route("food.analyze") }}', {
-                method: 'POST',
-                body: formData,
-            });
+            const res  = await fetch('{{ route("food.analyze") }}', { method: 'POST', body: formData });
             const data = await res.json();
 
             if (!data.success) throw new Error('Analisis gagal');
 
             const a = data.analysis;
-            document.getElementById('result-name').textContent = a.food_name || '-';
-            document.getElementById('result-desc').textContent = a.description || '';
-            document.getElementById('result-cal').textContent = (a.calories || 0) + ' kkal';
+            document.getElementById('result-name').textContent    = a.food_name    || '-';
+            document.getElementById('result-desc').textContent    = a.description  || '';
+            document.getElementById('result-cal').textContent     = (a.calories || 0) + ' kkal';
             document.getElementById('result-protein').textContent = a.protein || 0;
-            document.getElementById('result-carbs').textContent = a.carbs || 0;
-            document.getElementById('result-fat').textContent = a.fat || 0;
-            document.getElementById('result-notes').textContent = a.notes || '';
-            document.getElementById('result-img').src = previewSrc;
+            document.getElementById('result-carbs').textContent   = a.carbs   || 0;
+            document.getElementById('result-fat').textContent     = a.fat     || 0;
+            document.getElementById('result-notes').textContent   = a.notes   || '';
+            document.getElementById('result-img').src             = previewSrc;
 
-            document.getElementById('f-name').value = a.food_name || '';
-            document.getElementById('f-calories').value = a.calories || 0;
-            document.getElementById('f-protein').value = a.protein || 0;
-            document.getElementById('f-carbs').value = a.carbs || 0;
-            document.getElementById('f-fat').value = a.fat || 0;
-            document.getElementById('f-desc').value = a.description || '';
-            document.getElementById('f-temp-path').value = data.temp_path || '';
-            document.getElementById('f-ai-analysis').value = JSON.stringify(a);
+            document.getElementById('f-name').value         = a.food_name    || '';
+            document.getElementById('f-calories').value     = a.calories     || 0;
+            document.getElementById('f-protein').value      = a.protein      || 0;
+            document.getElementById('f-carbs').value        = a.carbs        || 0;
+            document.getElementById('f-fat').value          = a.fat          || 0;
+            document.getElementById('f-desc').value         = a.description  || '';
+            document.getElementById('f-temp-path').value    = data.temp_path || '';
+            document.getElementById('f-ai-analysis').value  = JSON.stringify(a);
 
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('loading').classList.remove('flex');
@@ -457,14 +612,18 @@
         }
     }
 
+    // ─── Reset ────────────────────────────────────────────────────
     function resetUpload() {
         selectedFile = null;
-        previewSrc = null;
-        document.getElementById('food-image').value = '';
-        document.getElementById('preview-img').src = '';
+        previewSrc   = null;
+
+        document.getElementById('food-image-camera').value  = '';
+        document.getElementById('food-image-gallery').value = '';
+        document.getElementById('preview-img').src          = '';
         document.getElementById('preview-wrap').classList.add('hidden');
         document.getElementById('upload-placeholder').classList.remove('hidden');
         document.getElementById('btn-analyze').classList.add('hidden');
+        document.getElementById('btn-analyze').classList.remove('flex');
         document.getElementById('step-confirm').classList.add('hidden');
     }
 </script>

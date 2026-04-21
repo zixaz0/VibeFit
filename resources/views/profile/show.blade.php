@@ -18,7 +18,7 @@
         <span class="text-yellow-500 text-xl mt-0.5">⚠️</span>
         <div>
             <p class="text-sm font-bold text-yellow-800">Profil belum lengkap</p>
-            <p class="text-xs text-yellow-700 mt-0.5">Lengkapi data diri kamu di bawah agar bisa menggunakan semua fitur CalorieLens.</p>
+            <p class="text-xs text-yellow-700 mt-0.5">Lengkapi data diri kamu di bawah agar bisa menggunakan semua fitur VibeFit.</p>
         </div>
     </div>
     @endif
