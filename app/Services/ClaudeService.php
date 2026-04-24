@@ -21,13 +21,32 @@ class ClaudeService
         $this->apiKey = env('GROQ_API_KEY', '');
     }
 
-    public function analyzeFoodImage(string $base64Image, string $mediaType): array
+    /**
+     * @param string $base64Image  Base64-encoded image data
+     * @param string $mediaType    MIME type (image/jpeg, image/png, etc.)
+     * @param string $foodHint     Optional hint from user about what the food is
+     */
+    public function analyzeFoodImage(string $base64Image, string $mediaType, string $foodHint = ''): array
     {
         if (empty($this->apiKey)) {
             return $this->fallbackResult('API key belum dikonfigurasi.');
         }
 
-        $prompt = 'Kamu adalah ahli gizi profesional. Analisis gambar makanan ini dan berikan estimasi nilai nutrisinya. Jawab HANYA dalam format JSON berikut, tanpa teks tambahan apapun:
+        // Bangun hint line — AI tetap harus cross-check visual, tidak boleh buta ikut hint
+        $hintLine = '';
+        if (!empty(trim($foodHint))) {
+            $hintLine = "\n\nINFO DARI PENGGUNA: Pengguna menyebut makanan ini sebagai \"{$foodHint}\". "
+                . "Gunakan ini sebagai petunjuk tambahan, BUKAN kebenaran mutlak. "
+                . "Tetap analisis gambar secara visual. "
+                . "Jika gambar COCOK atau MENDEKATI hint tersebut, gunakan nama dan data nutrisi dari hint. "
+                . "Jika gambar JELAS BERBEDA dari hint (misalnya hint bilang 'nasi goreng' tapi gambar jelas bukan nasi), "
+                . "abaikan hint dan analisis berdasarkan apa yang benar-benar terlihat di gambar. "
+                . "Tulis hasil yang jujur sesuai visual.";
+        }
+
+        $prompt = 'Kamu adalah ahli gizi profesional. Analisis gambar makanan ini dan berikan estimasi nilai nutrisinya.'
+            . $hintLine
+            . ' Jawab HANYA dalam format JSON berikut, tanpa teks tambahan apapun:
 {
   "food_name": "nama makanan dalam Bahasa Indonesia",
   "description": "deskripsi singkat makanan",

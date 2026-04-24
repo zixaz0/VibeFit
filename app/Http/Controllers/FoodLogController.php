@@ -42,7 +42,6 @@ class FoodLogController extends Controller
             return null;
         }
 
-        // Return public URL
         return "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$filename}";
     }
 
@@ -52,13 +51,15 @@ class FoodLogController extends Controller
     {
         $request->validate([
             'image' => ['required', 'image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
+            'food_hint' => ['nullable', 'string', 'max:100'],
         ]);
 
         $file      = $request->file('image');
         $base64    = base64_encode(file_get_contents($file->getRealPath()));
         $mediaType = $file->getMimeType();
+        $hint      = (string) $request->input('food_hint', '');
 
-        $result = $this->claude->analyzeFoodImage($base64, $mediaType);
+        $result = $this->claude->analyzeFoodImage($base64, $mediaType, $hint); // ← terusin ke AI
 
         // Simpan gambar sementara — buat folder jika belum ada
         $tempDir = storage_path('app/temp');
@@ -100,9 +101,6 @@ class FoodLogController extends Controller
             $tempPath = storage_path('app/' . $validated['temp_path']);
 
             if (file_exists($tempPath)) {
-                // Buat UploadedFile dari file temp
-                $uploadedFile = new \Illuminate\Http\File($tempPath);
-
                 $supabaseUrl  = env('SUPABASE_URL');
                 $supabaseKey  = env('SUPABASE_SERVICE_KEY');
                 $bucket       = 'food-images';
@@ -128,7 +126,6 @@ class FoodLogController extends Controller
                     ]);
                 }
 
-                // Hapus file temp setelah upload
                 @unlink($tempPath);
             }
         }
@@ -142,7 +139,7 @@ class FoodLogController extends Controller
             'fat'              => $validated['fat'] ?? null,
             'meal_type'        => $validated['meal_type'],
             'ai_analysis'      => $validated['ai_analysis'] ?? null,
-            'image_path'       => $imageUrl,  // simpan URL publik Supabase
+            'image_path'       => $imageUrl,
             'logged_date'      => $validated['logged_date'] ?? today(),
         ]);
 
@@ -157,13 +154,11 @@ class FoodLogController extends Controller
             abort(403);
         }
 
-        // Hapus dari Supabase Storage jika ada
         if ($foodLog->image_path) {
             $supabaseUrl = env('SUPABASE_URL');
             $supabaseKey = env('SUPABASE_SERVICE_KEY');
             $bucket      = 'food-images';
 
-            // Extract path dari URL publik
             $path = str_replace("{$supabaseUrl}/storage/v1/object/public/{$bucket}/", '', $foodLog->image_path);
 
             Http::withHeaders([
