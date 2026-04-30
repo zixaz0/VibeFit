@@ -14,35 +14,57 @@ class FoodLogController extends Controller
 {
     public function __construct(private ClaudeService $claude) {}
 
-    // ── UPLOAD KE SUPABASE STORAGE ────────────────────────────────────────────
+    // ── COMPRESS IMAGE ────────────────────────────────────────────────────────
 
-    private function uploadToSupabase(\Illuminate\Http\UploadedFile $file): ?string
+    private function compressImage(string $filePath, string $mimeType): string
     {
-        $supabaseUrl    = env('SUPABASE_URL');
-        $supabaseKey    = env('SUPABASE_SERVICE_KEY');
-        $bucket         = 'food-images';
+        // Buat image resource dari file
+        $image = match(true) {
+            str_contains($mimeType, 'png')  => imagecreatefrompng($filePath),
+            str_contains($mimeType, 'webp') => imagecreatefromwebp($filePath),
+            default                         => imagecreatefromjpeg($filePath),
+        };
 
-        $extension      = $file->getClientOriginalExtension();
-        $filename       = Auth::id() . '/' . Str::uuid() . '.' . $extension;
-        $fileContents   = file_get_contents($file->getRealPath());
-        $mimeType       = $file->getMimeType();
-
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $supabaseKey,
-            'Content-Type'  => $mimeType,
-            'x-upsert'      => 'true',
-        ])->withBody($fileContents, $mimeType)
-          ->post("{$supabaseUrl}/storage/v1/object/{$bucket}/{$filename}");
-
-        if ($response->failed()) {
-            Log::error('Supabase upload failed', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-            return null;
+        if (!$image) {
+            // Fallback: langsung base64 tanpa compress
+            return base64_encode(file_get_contents($filePath));
         }
 
-        return "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$filename}";
+        $origW = imagesx($image);
+        $origH = imagesy($image);
+
+        // Resize maksimal 800px di sisi terpanjang
+        $maxSize = 800;
+        if ($origW > $maxSize || $origH > $maxSize) {
+            if ($origW > $origH) {
+                $newW = $maxSize;
+                $newH = (int) round($origH * ($maxSize / $origW));
+            } else {
+                $newH = $maxSize;
+                $newW = (int) round($origW * ($maxSize / $origH));
+            }
+            $resized = imagecreatetruecolor($newW, $newH);
+
+            // Preserve transparency untuk PNG
+            if (str_contains($mimeType, 'png')) {
+                imagealphablending($resized, false);
+                imagesavealpha($resized, true);
+                $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
+                imagefilledrectangle($resized, 0, 0, $newW, $newH, $transparent);
+            }
+
+            imagecopyresampled($resized, $image, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+            imagedestroy($image);
+            $image = $resized;
+        }
+
+        // Output sebagai JPEG kualitas 75%
+        ob_start();
+        imagejpeg($image, null, 75);
+        $imageData = ob_get_clean();
+        imagedestroy($image);
+
+        return base64_encode($imageData);
     }
 
     // ── ANALYZE IMAGE (AJAX) ──────────────────────────────────────────────────
@@ -50,23 +72,33 @@ class FoodLogController extends Controller
     public function analyze(Request $request)
     {
         $request->validate([
-            'image' => ['required', 'image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
+            'image'     => ['required', 'image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
             'food_hint' => ['nullable', 'string', 'max:100'],
         ]);
 
         $file      = $request->file('image');
-        $base64    = base64_encode(file_get_contents($file->getRealPath()));
-        $mediaType = $file->getMimeType();
+        $filePath  = $file->getRealPath();
+        $mimeType  = $file->getMimeType();
         $hint      = (string) $request->input('food_hint', '');
 
-        $result = $this->claude->analyzeFoodImage($base64, $mediaType, $hint); // ← terusin ke AI
+        // Compress & resize sebelum kirim ke AI
+        try {
+            $base64    = $this->compressImage($filePath, $mimeType);
+            $mediaType = 'image/jpeg'; // selalu JPEG setelah compress
+        } catch (\Throwable $e) {
+            Log::warning('Compress failed, using original', ['error' => $e->getMessage()]);
+            $base64    = base64_encode(file_get_contents($filePath));
+            $mediaType = $mimeType;
+        }
 
-        // Simpan gambar sementara — buat folder jika belum ada
+        $result = $this->claude->analyzeFoodImage($base64, $mediaType, $hint);
+
+        // Simpan gambar original ke temp
         $tempDir = storage_path('app/temp');
         if (!file_exists($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
-        $tempFilename = \Str::random(40) . '.' . $file->getClientOriginalExtension();
+        $tempFilename = Str::random(40) . '.' . $file->getClientOriginalExtension();
         $file->move($tempDir, $tempFilename);
         $tempPath = 'temp/' . $tempFilename;
 
